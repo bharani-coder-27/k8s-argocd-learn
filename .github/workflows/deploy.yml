@@ -1,0 +1,49 @@
+name: Build and Deploy
+
+on:
+  push:
+    branches:
+      - main        # runs every time you push to main branch
+
+jobs:
+  build-and-push:
+    runs-on: ubuntu-latest   # GitHub gives you a free Linux machine to run this
+
+    steps:
+
+      # Step 1: Download your code onto the GitHub machine
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      # Step 2: Login to Docker Hub using your credentials
+      # (stored safely as secrets, not hardcoded)
+      - name: Login to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      # Step 3: Build the image and push it
+      # Tags it with TWO tags:
+      #   - the git commit SHA (unique per commit, e.g. abc1234)
+      #   - 'latest' (always points to newest)
+      - name: Build and push image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          push: true
+          tags: |
+            ${{ secrets.DOCKERHUB_USERNAME }}/k8s-demo:${{ github.sha }}
+            ${{ secrets.DOCKERHUB_USERNAME }}/k8s-demo:latest
+
+      # Step 4: Update deployment.yaml with the new image tag
+      # then commit and push that change back to Git
+      # ArgoCD will detect this and sync automatically
+      - name: Update image tag in deployment.yaml
+        run: |
+          sed -i "s|image:.*|image: ${{ secrets.DOCKERHUB_USERNAME }}/k8s-demo:${{ github.sha }}|" k8s/deployment.yaml
+          git config user.name "github-actions"
+          git config user.email "actions@github.com"
+          git add k8s/deployment.yaml
+          git commit -m "ci: update image to ${{ github.sha }}"
+          git push

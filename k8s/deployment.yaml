@@ -14,6 +14,6 @@ spec:
     spec:
       containers:
         - name: k8s-demo
-          image: bharani27/k8s-image:v1
+          image: bharani27/k8s-demo:7f09b23bf8872d644cfb95e91ceec03bfafe0d4f
           ports:
             - containerPort: 3000
